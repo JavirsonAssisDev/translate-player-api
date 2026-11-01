@@ -41,7 +41,10 @@ def processar_video(url: str):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao obter legendas: {str(e)}")
+        import traceback
+        erro_detalhado = traceback.format_exc()
+        print(erro_detalhado) # Imprime nos logs do Render
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
