@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from youtube_transcript_api import YouTubeTranscriptApi
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 app = FastAPI(title="Translate Player API", version="1.0")
 
 def extrair_video_id(url: str) -> str:
-    parsed_url = urlparse(url)
+    # Descodifica a URL caso venha codificada (ex: %3A%2F%2F)
+    url_limpa = unquote(url)
+    parsed_url = urlparse(url_limpa)
+    
     if parsed_url.hostname == 'youtu.be':
         return parsed_url.path[1:]
     if parsed_url.hostname in ('www.youtube.com', 'youtube.com'):
@@ -22,9 +25,9 @@ def processar_video(url: str):
     try:
         dados_legenda = None
         
-        # Tenta a abordagem padrão de obter transcrição
+        # Tenta a abordagem padrão de obter transcrição (adicionado 'pt' e inglês)
         try:
-            dados_legenda = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-orig'])
+            dados_legenda = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en', 'en-orig'])
         except Exception:
             try:
                 # Tenta listar se o método estiver disponível
