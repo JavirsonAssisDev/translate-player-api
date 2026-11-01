@@ -5,7 +5,6 @@ from urllib.parse import urlparse, parse_qs
 app = FastAPI(title="Translate Player API", version="1.0")
 
 def extrair_video_id(url: str) -> str:
-    """Extrai o ID do vídeo de diferentes formatos de link do YouTube."""
     parsed_url = urlparse(url)
     if parsed_url.hostname == 'youtu.be':
         return parsed_url.path[1:]
@@ -21,14 +20,13 @@ def processar_video(url: str):
         raise HTTPException(status_code=400, detail="Link do YouTube inválido.")
     
     try:
-        # Forma direta e compatível com as versões recentes da biblioteca
-        # Tenta buscar as legendas em inglês primeiro
+        # Tenta obter a transcrição em inglês ou a primeira disponível
         try:
             dados_legenda = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-orig'])
         except Exception:
-            # Se não encontrar em inglês, pega a primeira disponível em qualquer idioma
-            lista_transcricoes = YouTubeTranscriptApi.list_transcripts(video_id)
-            primeira = next(iter(lista_transcricoes))
+            # Fallback caso a assinatura exija list_transcripts ou outro método
+            lista = YouTubeTranscriptApi.list_transcripts(video_id)
+            primeira = next(iter(lista))
             dados_legenda = primeira.fetch()
         
         texto_completo = " ".join([item['text'] for item in dados_legenda])
@@ -43,10 +41,7 @@ def processar_video(url: str):
         }
         
     except Exception as e:
-        import traceback
-        erro_detalhado = traceback.format_exc()
-        print(erro_detalhado) # Imprime nos logs do Render
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erro ao obter legendas: {str(e)}")
 
 @app.get("/")
 def home():
