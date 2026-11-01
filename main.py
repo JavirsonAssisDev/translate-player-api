@@ -21,21 +21,23 @@ def processar_video(url: str):
         raise HTTPException(status_code=400, detail="Link do YouTube inválido.")
     
     try:
-        # Busca a lista de legendas disponíveis para o vídeo
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        # Forma direta e compatível com as versões recentes da biblioteca
+        # Tenta buscar as legendas em inglês primeiro
+        try:
+            dados_legenda = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-orig'])
+        except Exception:
+            # Se não encontrar em inglês, pega a primeira disponível em qualquer idioma
+            lista_transcricoes = YouTubeTranscriptApi.list_transcripts(video_id)
+            primeira = next(iter(lista_transcricoes))
+            dados_legenda = primeira.fetch()
         
-        # Tenta encontrar a legenda em inglês (manual ou gerada automaticamente)
-        transcript = transcript_list.find_transcript(['en', 'en-orig'])
-        dados_legenda = transcript.fetch()
-        
-        # Cria um texto contínuo juntando todas as frases da legenda
         texto_completo = " ".join([item['text'] for item in dados_legenda])
         
         return {
             "status": "sucesso",
             "titulo": f"Vídeo YouTube ({video_id})",
             "video_id": video_id,
-            "legenda": dados_legenda, # Lista contendo texto, tempo de início e duração de cada bloco
+            "legenda": dados_legenda,
             "texto_plano": texto_completo,
             "mensagem": "Legendas extraídas com sucesso pelo servidor!"
         }
