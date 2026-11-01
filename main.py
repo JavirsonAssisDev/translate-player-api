@@ -20,15 +20,24 @@ def processar_video(url: str):
         raise HTTPException(status_code=400, detail="Link do YouTube inválido.")
     
     try:
-        # Tenta obter a transcrição em inglês ou a primeira disponível
+        dados_legenda = None
+        
+        # Tenta a abordagem padrão de obter transcrição
         try:
             dados_legenda = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-orig'])
         except Exception:
-            # Fallback caso a assinatura exija list_transcripts ou outro método
-            lista = YouTubeTranscriptApi.list_transcripts(video_id)
-            primeira = next(iter(lista))
-            dados_legenda = primeira.fetch()
-        
+            try:
+                # Tenta listar se o método estiver disponível
+                lista = YouTubeTranscriptApi.list_transcripts(video_id)
+                for tr in lista:
+                    dados_legenda = tr.fetch()
+                    break
+            except Exception as inner_e:
+                raise HTTPException(status_code=500, detail=f"Falha interna na biblioteca: {str(inner_e)}")
+                
+        if not dados_legenda:
+            raise HTTPException(status_code=404, detail="Nenhuma legenda encontrada para este vídeo.")
+            
         texto_completo = " ".join([item['text'] for item in dados_legenda])
         
         return {
@@ -40,6 +49,8 @@ def processar_video(url: str):
             "mensagem": "Legendas extraídas com sucesso pelo servidor!"
         }
         
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter legendas: {str(e)}")
 
