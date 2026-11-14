@@ -1,44 +1,51 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from faster_whisper import WhisperModel
-import shutil
-import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
 
 app = FastAPI(title="Translate Player AI API", version="2.0")
 
-# Carrega o modelo Whisper ("base" é leve, rápido e ideal para servidores gratuitos)
-# Ele é descarregado automaticamente na primeira vez que o servidor arranca.
-model_size = "base"
-model = WhisperModel(model_size, device="cpu", compute_type="int8")
+# Modelo para receber o texto que o app quer traduzir
+class TextoRequest(BaseModel):
+    texto: str
+
+# Modelo para o catálogo de vídeos online (se quiser usar no futuro)
+class VideoDisponivel(BaseModel):
+    id: str
+    titulo: str
+    url_video: str
+    url_legenda: str
+
+CATALOGO_VIDEOS = [
+    VideoDisponivel(
+        id="1",
+        titulo="Exemplo de Aula - Lesson 1",
+        url_video="https://exemplo.com/videos/lesson1.mp4",
+        url_legenda="https://exemplo.com/videos/lesson1.srt"
+    )
+]
 
 @app.get("/")
 def home():
-    return {"status": "API do Translate Player (Com Faster-Whisper) Rodando com Sucesso! 🚀"}
+    return {"status": "API do Translate Player (Modo Texto Leve) Rodando com Sucesso! 🚀"}
 
-@app.post("/traduzir-trecho/")
-async def traduzir_trecho(file: UploadFile = File(...)):
-    temp_file_path = f"temp_{file.filename}"
-    
+@app.get("/videos-disponiveis", response_model=List[VideoDisponivel])
+def listar_videos():
+    return CATALOGO_VIDEOS
+
+@app.post("/traduzir-texto/")
+def traduzir_texto(dados: TextoRequest):
     try:
-        # Guarda temporariamente o pedaço de áudio enviado pelo app Android
-        with open(temp_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Aqui você pode integrar uma biblioteca de tradução simples (como googletrans)
+        # ou por enquanto retornar uma resposta simulada para testar a ponte com o app.
+        texto_original = dados.texto
         
-        # Processa o áudio com o Faster-Whisper traduzindo diretamente para o inglês/português
-        # task="translate" traduz o áudio falado para o inglês (ou podemos omitir para manter o idioma original ou traduzir)
-        segments, info = model.translate(temp_file_path)
-        
-        texto_traduzido = " ".join([segment.text for segment in segments])
-        
+        # Simulação de tradução (substituiremos por tradução real em breve)
+        texto_traduzido = f"[Tradução]: {texto_original}"
+
         return {
             "status": "sucesso",
-            "idioma_detectado": info.language,
-            "texto_traduzido": texto_traduzido.strip()
+            "texto_original": texto_original,
+            "texto_traduzido": texto_traduzido
         }
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar áudio com IA: {str(e)}")
-        
-    finally:
-        # Apaga o arquivo temporário do servidor para não ocupar espaço em disco
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=f"Erro ao traduzir texto: {str(e)}")
